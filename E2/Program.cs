@@ -1,5 +1,4 @@
 using E2.configure;
-using E2.Firebase;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +8,17 @@ builder.AddServices();
 builder.AddSwagger();
 builder.AddEntityFramework();
 builder.AddAuthentication();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.WithOrigins("http://localhost:3000")
+               .AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowCredentials();
+    });
+});
+
 
 var app = builder.Build();
 
@@ -18,6 +28,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseCors();
 
 app.UseRouting();
 app.UseHttpsRedirection();

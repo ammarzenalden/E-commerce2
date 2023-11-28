@@ -7,6 +7,8 @@ using System.Security.Claims;
 using E2.DTO;
 using Microsoft.IdentityModel.Tokens;
 using E2.Firebase;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace E2.Controllers;
 
@@ -192,15 +194,15 @@ public class ProductsController : ControllerBase
                 await _context.SaveChangesAsync();
                 prod.GetProductRate();
                 var deviceToken = _context.DeviceTokens.Where(p=> p.UserId == prod.UserId).ToList();
-                if (deviceToken != null && deviceToken.Count > 0)
-                {
-                    foreach (var device in deviceToken)
-                    {
-                        string token = device.Token;
+                //if (deviceToken != null && deviceToken.Count > 0)
+                //{
+                //    foreach (var device in deviceToken)
+                //    {
+                //        string token = device.Token;
 
-                        FirebaseCloudMessaging.SendNotification(token, "Product Updated", $"A product with the name '{prod.Name}' has been Updated.");
-                    }
-                }
+                //        FirebaseCloudMessaging.SendNotification(token, "Product Updated", $"A product with the name '{prod.Name}' has been Updated.");
+                //    }
+                //}
 
                 return Ok(new
                 {
@@ -298,15 +300,15 @@ public class ProductsController : ControllerBase
             prod.RateCount = count;
         }
         var deviceToken = _context.DeviceTokens.Where(p => p.UserId == prod.UserId).ToList();
-        if (deviceToken != null && deviceToken.Count > 0)
-        {
-            foreach (var device in deviceToken)
-            {
-                string token = device.Token;
+        //if (deviceToken != null && deviceToken.Count > 0)
+        //{
+        //    foreach (var device in deviceToken)
+        //    {
+        //        string token = device.Token;
 
-                FirebaseCloudMessaging.SendNotification(token, "New Product Added", $"A new product with the name '{prod.Name}' has been added.");
-            }
-        }
+        //        FirebaseCloudMessaging.SendNotification(token, "New Product Added", $"A new product with the name '{prod.Name}' has been added.");
+        //    }
+        //}
         return Ok(new
         {
             success = true,
@@ -335,15 +337,15 @@ public class ProductsController : ControllerBase
             _context.Products.Update(product);
             await _context.SaveChangesAsync();
             var deviceToken = _context.DeviceTokens.Where(p => p.UserId == product.UserId).ToList();
-            if (deviceToken != null && deviceToken.Count > 0)
-            {
-                foreach (var device in deviceToken)
-                {
-                    string token = device.Token;
+            //if (deviceToken != null && deviceToken.Count > 0)
+            ////{
+            ////    foreach (var device in deviceToken)
+            ////    {
+            ////        string token = device.Token;
 
-                    FirebaseCloudMessaging.SendNotification(token, "Product deleted", $"A  product with the name '{product.Name}' has been deleted.");
-                }
-            }
+            ////        FirebaseCloudMessaging.SendNotification(token, "Product deleted", $"A  product with the name '{product.Name}' has been deleted.");
+            ////    }
+            ////}
             return Ok(new
             {
                 success = true,

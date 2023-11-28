@@ -20,6 +20,11 @@ public class ApplicationDbContext : IdentityDbContext<User>
         .WithMany()
         .HasForeignKey(p => p.BuyerId)
         .OnDelete(DeleteBehavior.NoAction);
+        builder.Entity<User>()
+          .HasOne(u => u.RefreshToken)
+          .WithOne(t => t.User)
+          .HasForeignKey<RefreshToken>(t => t.UserId)
+          .OnDelete(DeleteBehavior.NoAction);
         builder.Entity<PaymentProduct>()
         .HasOne(p => p.User)
         .WithMany()
@@ -93,4 +98,5 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<PaymentProduct> PaymentProducts { get; set; }
     public DbSet<PassowrdReset> PassowrdReset { get; set;}
     public DbSet<DeviceToken> DeviceTokens { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
 }

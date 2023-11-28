@@ -1,5 +1,7 @@
-﻿using E2.Data;
+﻿using BCrypt.Net;
+using E2.Data;
 using E2.DTO;
+using E2.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -15,9 +17,9 @@ public class GenerateToken
         _config = config;
         _context = context;
     }
-    public string GenerateApiToken(UserDto user)
+    private string GenerateApiToken(int id)
     {
-        var currentUser = _context.Users.FirstOrDefault(x => x.Email!.ToLower() == user.Email!.ToLower());
+        var currentUser = _context.Users.Find(id);
         var secretKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_config.GetValue<string>("Authentication:SecretKey")!));
         var SigningCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
         List<Claim> claims = new();
@@ -33,4 +35,41 @@ public class GenerateToken
             SigningCredentials);
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+    private RefreshToken GenerateRefreshToken(int id)
+    {
+        var currentUser = _context.Users.Find(id);
+        // generate refresh token
+        return new RefreshToken
+        {
+            UserId = currentUser.UserId,
+            Expires = DateTime.UtcNow.AddDays(1),
+            Token = Guid.NewGuid().ToString()
+        };
+    }
+    public TokenDto GenerateTokens(int id)
+    {
+        var token = GenerateApiToken(id);
+        var refreshToken = _context.RefreshTokens.FirstOrDefault(x => x.UserId == id);
+        var newRefreshToken = new RefreshToken();
+        if (refreshToken == null)
+        { 
+            newRefreshToken = GenerateRefreshToken(id);
+            _context.RefreshTokens.Add(newRefreshToken);
+            _context.SaveChanges();
+        }
+        else if(refreshToken.Expires < DateTime.UtcNow)
+        {
+            _context.RefreshTokens.Remove(refreshToken);
+            newRefreshToken = GenerateRefreshToken(id);
+            _context.RefreshTokens.Add(newRefreshToken);
+            _context.SaveChanges();
+        }
+        else
+        {
+            newRefreshToken = refreshToken;
+        }
+
+        return new TokenDto(token,newRefreshToken.Token!);
+    }
+
 }

@@ -9,6 +9,7 @@ using E2.DTO;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using E2.Firebase;
+using System.Reflection;
 
 namespace E2.Controllers;
 
@@ -36,6 +37,25 @@ public class UsersController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Register(UserRegisterDto userDto)
     {
+        Boolean hasNull=false;
+        string theNull="";
+        foreach (PropertyInfo property in userDto.GetType().GetProperties())
+        {
+            object value = property.GetValue(userDto);
+            if (value == null)
+            {
+                hasNull = true;
+                theNull=$"Property '{property.Name}' is null.";
+            }
+        }
+        if (hasNull)
+        {
+            return BadRequest(new
+            {
+                success = true,
+                message = theNull
+            });
+        };
         var currentUser = _context.Users.FirstOrDefault(x => x.Email!.ToLower() == userDto.Email!.ToLower());
 
         if (currentUser is null)
@@ -59,7 +79,7 @@ public class UsersController : ControllerBase
         }
         else
         {
-            return Ok(new
+            return Conflict(new
             {
                 success = false,
                 message = "the user is existing"
@@ -73,27 +93,43 @@ public class UsersController : ControllerBase
         var currentUser = _context.Users.FirstOrDefault(x => x.Email!.ToLower() == user.Email!.ToLower());
         if (currentUser == null || !BCrypt.Net.BCrypt.Verify(user.Password,currentUser.HashPassword))
         {
-            return Ok(new { success = false ,message = "false email or password"});
+            return Unauthorized(new { success = false ,message = "false email or password"});
         }
         DeviceToken deviceToken = new DeviceToken
         {
             UserId = currentUser.UserId,
             Token = user.DeviceToken
         };
+        GenerateToken g = new GenerateToken(_context,_config);
+        var tokenDto = g.GenerateTokens(currentUser.UserId);
         _context.DeviceTokens.Add(deviceToken);
         _context.SaveChanges();
-        GenerateToken g = new GenerateToken(_context,_config);
-        string token = g.GenerateApiToken(user);
+        MobileMessagingClient mob = new MobileMessagingClient();
+        string notMessage = "";
+        try
+        {
+            mob.SendNotification(user.DeviceToken, "sucess", "welcome");
+            notMessage = "success";
+
+        }
+        catch (Exception e)
+        {
+            notMessage = "somthing went wrong";
+        }
         return Ok(new
         {
             success = true,
             message = "success",
+            notification = notMessage,
             data = new
             {
-                theToken = token,
+                theToken = tokenDto.Token,
+                refreshToken = tokenDto.RefreshToken,
                 user = currentUser.ToJson()
             }
-        }) ;
+        });
+
+
     }
     [HttpGet("GetAllUsers")]
     [AllowAnonymous]
@@ -140,7 +176,7 @@ public class UsersController : ControllerBase
             var user = authenticateResult.Principal;
             var existingUser = _context.Users.FirstOrDefault(x => x.Email!.ToLower() == user.FindFirstValue(ClaimTypes.Email));/*await _userManager.FindByEmailAsync(user.FindFirstValue(ClaimTypes.Email)!);*/
 
-            if (existingUser == null)
+            if (existingUser is null)
             {
                 // User doesn't exist, create a new User entity
                 User newUser = new()
@@ -156,19 +192,29 @@ public class UsersController : ControllerBase
                 // Save the new user to the database
                 await _context.Users.AddAsync(newUser);
                 await _context.SaveChangesAsync();
+                var theNewUser = _context.Users.Find(newUser);
+                GenerateToken g = new GenerateToken(_context, _config);
+                var tokenDto = g.GenerateTokens(theNewUser!.UserId);
+                return Ok(new
+                {
+                    success = true,
+                    theToken = tokenDto.Token,
+                    refreshToken = tokenDto.RefreshToken,
+                    data = theNewUser.ToJson()
+                });
             }
-            var existUser = _context.Users.FirstOrDefault(x => x.Email!.ToLower() == user.FindFirstValue(ClaimTypes.Email));
-            UserDto userdto = new();
-            userdto.Email = existUser!.Email;
-            userdto.Password = existUser.HashPassword;
-            GenerateToken g = new GenerateToken(_context, _config);
-            string token = g.GenerateApiToken(userdto);
-            return Ok(new
+            else
             {
-                success = true,
-                theToken = token,
-                data = existUser.ToJson()
-            });
+                GenerateToken g = new GenerateToken(_context, _config);
+                var tokenDto = g.GenerateTokens(existingUser.UserId);
+                return Ok(new
+                {
+                    success = true,
+                    theToken = tokenDto.Token,
+                    refreshToken = tokenDto.RefreshToken,
+                    data = existingUser.ToJson()
+                });
+            }
         }
         else
         {
@@ -259,30 +305,54 @@ public class UsersController : ControllerBase
         }
 
     }
+
     [HttpPost("LogOut")]
     public async Task<IActionResult> LogOut(string deviceToken)
     {
         var deviceLogedIn = await _context.DeviceTokens.FindAsync(deviceToken);
-        if(deviceLogedIn is null)
+        
+        if (deviceLogedIn is null)
         {
             return BadRequest(new
             {
                 success = false,
-                messagge = "somthing went wrong"
+                message = "something went wrong"
             });
-
         }
         else
         {
+            
             _context.DeviceTokens.Remove(deviceLogedIn);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
+
             return Ok(new
             {
                 success = true,
-                message = "LogedOut successfuly"
+                message = "Logged out successfully"
             });
         }
-
     }
+
+    [HttpGet("refreshToken")]
+    public async Task<IActionResult> RefreshToken(string refreshToken)
+    {
+        var refToken = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.Token == refreshToken);
+        if(refToken is null || refToken.Expires < DateTime.UtcNow)
+        {
+            return BadRequest(new { success = false, message = "you need to login" });  
+        }
+        else
+        {
+            GenerateToken g = new GenerateToken(_context, _config);
+            var tokenDto = g.GenerateTokens(refToken.UserId);
+            return Ok(new
+            {
+                success = true,
+                token = tokenDto.Token,
+                refreshToken = tokenDto.RefreshToken
+            });
+        }
+    }
+
 }
 

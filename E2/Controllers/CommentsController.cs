@@ -127,15 +127,15 @@ namespace E2.Controllers
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
             var deviceToken = _context.DeviceTokens.Where(p => p.UserId == product.UserId).ToList();
-            if (deviceToken != null && deviceToken.Count > 0)
-            {
-                foreach (var device in deviceToken)
-                {
-                    string token = device.Token;
+            //if (deviceToken != null && deviceToken.Count > 0)
+            //{
+            //    foreach (var device in deviceToken)
+            //    {
+            //        string token = device.Token;
 
-                    FirebaseCloudMessaging.SendNotification(token, "New comment", $"A new product with the name '{product.Name}' has a new comment.");
-                }
-            }
+            //        FirebaseCloudMessaging.SendNotification(token, "New comment", $"A new product with the name '{product.Name}' has a new comment.");
+            //    }
+            //}
             return Ok(new
             {
                 success = true,

@@ -1,6 +1,7 @@
 ﻿using E2.Data;
 using E2.DTO;
 using E2.Models;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
 using System.Data;
 using System.Text;
@@ -71,9 +73,13 @@ public static class ProgramServices
         builder.Services.AddAuthorization();
         builder.Services.AddAuthentication(options =>
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        }).AddJwtBearer(opts =>
+            //options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            //options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            //options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            //options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            //options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+
+        }).AddJwtBearer("Bearer", opts =>
         {
             opts.TokenValidationParameters = new()
             {
@@ -88,7 +94,7 @@ public static class ProgramServices
         {
             googleOptions.ClientId = builder.Configuration.GetValue<string>("Google:ClientId")!;
             googleOptions.ClientSecret = builder.Configuration.GetValue<string>("Google:ClientSecret")!;
-            
+
 
         });
         builder.Services.AddIdentity<User, IdentityRole>()

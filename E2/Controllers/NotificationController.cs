@@ -12,16 +12,18 @@ namespace E2.Controllers
     {
         [HttpPost("send")]
         [AllowAnonymous]
-        public IActionResult SendNotification([FromBody] NotificationModel model)
+        public async Task<ActionResult> SendNotification([FromBody] NotificationModel model)
         {
             try
             {
-                FirebaseCloudMessaging.SendNotification(model.DeviceToken, model.Title, model.Body);
+                MobileMessagingClient mob = new MobileMessagingClient();
+                await mob.SendNotification(model.DeviceToken, model.Title, model.Body);
                 return Ok("Notification sent successfully.");
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return BadRequest();
+                throw (e);
+                //return BadRequest();
             }
         }
     }
